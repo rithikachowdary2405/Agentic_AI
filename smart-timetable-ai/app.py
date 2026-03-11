@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from calendar_api import connect_calendar, create_event, get_events
 from scheduler import check_conflict, find_free_time
-from datetime import datetime
+from datetime import time
 
 st.title("Smart Timetable Assistant")
 
