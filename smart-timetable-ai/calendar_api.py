@@ -1,27 +1,24 @@
+import streamlit as st
 from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
-import os
 
 SCOPES = ['https://www.googleapis.com/auth/calendar']
 
 def connect_calendar():
-    creds = None
 
-    if os.path.exists('token.json'):
-        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
-
-    if not creds or not creds.valid:
-        flow = InstalledAppFlow.from_client_secrets_file(
-            'credentials.json', SCOPES)
-        creds = flow.run_local_server(port=0)
-
-        with open('token.json', 'w') as token:
-            token.write(creds.to_json())
+    creds = Credentials(
+        token=st.secrets["google_token"]["token"],
+        refresh_token=st.secrets["google_token"]["refresh_token"],
+        token_uri=st.secrets["google_token"]["token_uri"],
+        client_id=st.secrets["google_token"]["client_id"],
+        client_secret=st.secrets["google_token"]["client_secret"],
+        scopes=SCOPES
+    )
 
     service = build('calendar', 'v3', credentials=creds)
 
     return service
+
 
 def create_event(service, title, start_time, end_time):
 
@@ -31,9 +28,13 @@ def create_event(service, title, start_time, end_time):
         'end': {'dateTime': end_time, 'timeZone': 'Asia/Kolkata'},
     }
 
-    event = service.events().insert(calendarId='primary', body=event).execute()
+    event = service.events().insert(
+        calendarId='primary',
+        body=event
+    ).execute()
 
     return event
+
 
 def get_events(service):
 
