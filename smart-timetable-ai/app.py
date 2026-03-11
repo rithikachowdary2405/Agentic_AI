@@ -13,10 +13,10 @@ st.header("Create Event")
 title = st.text_input("Event Title")
 
 start_date = st.date_input("Start Date")
-start_time = st.time_input("Start Time", step=60)
+start_time = st.time_input("Start Time", value=time(9,0), step=60)
 
 end_date = st.date_input("End Date")
-end_time = st.time_input("End Time", step=60)
+end_time = st.time_input("End Time", value=time(10,0), step=60)
 
 start = datetime.combine(start_date, start_time).isoformat()
 end = datetime.combine(end_date, end_time).isoformat()
@@ -51,7 +51,7 @@ st.dataframe(df)
 
 st.header("Class Timetable")
 
-timetable = pd.read_csv("timetable.csv")
+timetable = pd.read_csv("smart-timetable-ai/timetable.csv")
 
 st.dataframe(timetable)
 
