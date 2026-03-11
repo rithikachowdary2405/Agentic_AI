@@ -57,7 +57,7 @@ st.dataframe(timetable)
 
 st.header("Assignments")
 
-assignments = pd.read_csv("assignments.csv")
+assignments = pd.read_csv("./assignments.csv")
 
 st.dataframe(assignments)
 
