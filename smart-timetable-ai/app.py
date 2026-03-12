@@ -3,6 +3,7 @@ import pandas as pd
 from calendar_api import connect_calendar, create_event, get_events
 from scheduler import check_conflict, find_free_time
 from datetime import datetime,time
+from datetime import timedelta
 
 st.title("Smart Timetable Assistant")
 
@@ -61,13 +62,48 @@ assignments = pd.read_csv("smart-timetable-ai/assignments.csv")
 
 st.dataframe(assignments)
 
-st.header("Scheduling Assistant")
+st.header("AI Scheduling Assistant")
 
-query = st.text_input("Ask something like: find free time")
+query = st.text_input("Ask something like: 'schedule meeting tomorrow at 5pm'")
 
-if "free" in query.lower():
+events = get_events(service)
 
-    free_slots = find_free_time(events)
+if query:
 
-    for slot in free_slots:
-        st.write("Free from", slot[0], "to", slot[1])
+    # find free time
+    if "free time" in query.lower():
+
+        free_slots = find_free_time(events)
+
+        if free_slots:
+            for slot in free_slots:
+                st.write("Free from", slot[0], "to", slot[1])
+        else:
+            st.write("No free slots found")
+
+    # schedule event using text
+    elif "schedule" in query.lower():
+
+        title = "New Event"
+
+        tomorrow = datetime.now() + timedelta(days=1)
+
+        start_time = tomorrow.replace(hour=17, minute=0, second=0).isoformat()
+        end_time = tomorrow.replace(hour=18, minute=0, second=0).isoformat()
+
+        create_event(service, title, start_time, end_time)
+
+        st.success("Event scheduled tomorrow at 5 PM")
+
+    # show assignments
+    elif "assignment" in query.lower():
+
+        df = pd.read_csv("assignments.csv")
+
+        st.dataframe(df)
+
+    else:
+        st.write("Sorry, I didn't understand the request.")
+        
+
+        
