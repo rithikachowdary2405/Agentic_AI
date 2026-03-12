@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from calendar_api import connect_calendar, create_event, get_events
 from scheduler import check_conflict, find_free_time
-from datetime import datetime, time, timedelta
+from datetime import datetime, timedelta
 from reminder import send_email_reminder
 import re
 
@@ -10,7 +10,10 @@ st.title("Smart Timetable Assistant")
 
 service = connect_calendar()
 
-# NEW: user email for reminders
+# -----------------------
+# USER EMAIL
+# -----------------------
+
 user_email = st.text_input("Enter your email to receive reminders")
 
 # -----------------------
@@ -22,30 +25,44 @@ st.header("Create Event")
 title = st.text_input("Event Title")
 
 start_date = st.date_input("Start Date")
-start_time = st.time_input("Start Time", value=time(9,0), step=60)
+start_time_text = st.text_input("Start Time (HH:MM)", "09:00")
 
 end_date = st.date_input("End Date")
-end_time = st.time_input("End Time", value=time(10,0), step=60)
-
-start = datetime.combine(start_date, start_time).isoformat()
-end = datetime.combine(end_date, end_time).isoformat()
+end_time_text = st.text_input("End Time (HH:MM)", "10:00")
 
 events = get_events(service)
 
 if st.button("Add Event"):
 
-    conflict = check_conflict(events, start, end)
+    try:
+        start_time = datetime.strptime(start_time_text, "%H:%M").time()
+        end_time = datetime.strptime(end_time_text, "%H:%M").time()
 
-    if conflict:
-        st.error("Time Conflict Detected!")
+        start_dt = datetime.combine(start_date, start_time)
+        end_dt = datetime.combine(end_date, end_time)
 
-    else:
-        create_event(service, title, start, end)
+        if end_dt <= start_dt:
+            st.error("End time must be after start time")
 
-        if user_email:
-            send_email_reminder(user_email, title)
+        else:
+            start = start_dt.isoformat()
+            end = end_dt.isoformat()
 
-        st.success("Event Created and Reminder Sent")
+            conflict = check_conflict(events, start, end)
+
+            if conflict:
+                st.error("Time Conflict Detected!")
+
+            else:
+                create_event(service, title, start, end)
+
+                if user_email:
+                    send_email_reminder(user_email, title)
+
+                st.success("Event Created and Reminder Sent")
+
+    except:
+        st.error("Please enter time in HH:MM format (example: 14:30)")
 
 # -----------------------
 # UPCOMING EVENTS
@@ -59,7 +76,7 @@ data = []
 
 for event in events:
     data.append({
-        "Title": event["summary"],
+        "Title": event.get("summary", "No Title"),
         "Start": event["start"].get("dateTime")
     })
 
@@ -76,6 +93,10 @@ st.header("Class Timetable")
 timetable = pd.read_csv("timetable.csv")
 
 st.dataframe(timetable)
+
+# -----------------------
+# ASSIGNMENTS
+# -----------------------
 
 st.header("Assignments")
 
@@ -125,10 +146,10 @@ if query:
         else:
             hour = 17
 
-        start_time = tomorrow.replace(hour=hour, minute=0, second=0).isoformat()
-        end_time = tomorrow.replace(hour=hour+1, minute=0, second=0).isoformat()
+        start_time = tomorrow.replace(hour=hour, minute=0, second=0)
+        end_time = tomorrow.replace(hour=hour+1, minute=0, second=0)
 
-        create_event(service, title, start_time, end_time)
+        create_event(service, title, start_time.isoformat(), end_time.isoformat())
 
         if user_email:
             send_email_reminder(user_email, title)
@@ -138,7 +159,7 @@ if query:
     # SHOW ASSIGNMENTS
     elif "assignment" in query:
 
-        df = pd.read_csv("smart-timetable-ai/assignments.csv")
+        df = pd.read_csv("assignments.csv")
 
         st.dataframe(df)
 
