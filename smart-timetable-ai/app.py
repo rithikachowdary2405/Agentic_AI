@@ -78,6 +78,7 @@ india_holidays = holidays.India(years=[current_year])
 
 if st.button("Add Event"):
 
+    # -------- FIXED TRY BLOCK --------
     try:
         start_time = parse_time_input(start_time_text)
         end_time = parse_time_input(end_time_text)
@@ -85,42 +86,47 @@ if st.button("Add Event"):
         start_dt = datetime.combine(start_date, start_time)
         end_dt = datetime.combine(end_date, end_time)
 
-        if start_dt.date() in india_holidays:
-            st.error("Cannot schedule on Indian holiday!")
-            st.stop()
-
-        if end_dt <= start_dt:
-            st.error("End time must be after start time")
-        else:
-            start = start_dt.isoformat()
-            end = end_dt.isoformat()
-
-            full_title = f"{event_type} - {title}"
-
-            conflict = check_conflict(events, start, end)
-
-            if conflict:
-                st.error("Time Conflict Detected!")
-            else:
-                create_event(service, full_title, start, end)
-
-                # auto study slot
-                if is_exam:
-                    study_start = start_dt - timedelta(days=1)
-                    create_event(
-                        service,
-                        f"Study for {title}",
-                        study_start.isoformat(),
-                        start_dt.isoformat()
-                    )
-
-                if user_email:
-                    send_email_reminder(user_email, title)
-
-                st.success("Event Created Successfully")
-
-    except:
+    except ValueError:
         st.error("Enter time like 9, 9am, 2:30pm, or 14:30")
+        st.stop()
+
+    # -------- NORMAL FLOW --------
+    if start_dt.date() in india_holidays:
+        st.error("Cannot schedule on Indian holiday!")
+        st.stop()
+
+    if end_dt <= start_dt:
+        st.error("End time must be after start time")
+
+    else:
+        start = start_dt.isoformat()
+        end = end_dt.isoformat()
+
+        full_title = f"{event_type} - {title}"
+
+        conflict = check_conflict(events, start, end)
+
+        if conflict:
+            st.error("Time Conflict Detected!")
+
+        else:
+            create_event(service, full_title, start, end)
+
+            # auto study slot for exams
+            if is_exam:
+                study_start = start_dt - timedelta(days=1)
+
+                create_event(
+                    service,
+                    f"Study for {title}",
+                    study_start.isoformat(),
+                    start_dt.isoformat()
+                )
+
+            if user_email:
+                send_email_reminder(user_email, title)
+
+            st.success("Event Created Successfully")
 
 # -----------------------
 # UPCOMING EVENTS
@@ -150,7 +156,9 @@ filtered = templates[templates["Semester"] == semester]
 st.dataframe(filtered)
 
 if st.button("Load Semester Schedule to Calendar"):
+
     for _, row in filtered.iterrows():
+
         today = datetime.now()
         hour, minute = map(int, row["Time"].split(":"))
 
@@ -206,6 +214,7 @@ if query:
     query = query.lower()
 
     if "free" in query:
+
         free_slots = find_free_time(events)
 
         if free_slots:
