@@ -1,4 +1,4 @@
-subject,deadline
-AI,2026-03-15
-DBMS,2026-03-18
-OS,2026-03-20
+Title,Deadline,Priority
+Math Assignment,2026-03-25,High
+OS Assignment,2026-03-28,Medium
+DBMS Assignment,2026-03-30,Low
