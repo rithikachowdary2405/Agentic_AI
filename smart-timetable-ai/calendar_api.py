@@ -1,50 +1,55 @@
-import streamlit as st
-from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
+from google.oauth2.credentials import Credentials
 
-SCOPES = ['https://www.googleapis.com/auth/calendar']
 
 def connect_calendar():
 
-    creds = Credentials(
-        token=st.secrets["google_token"]["token"],
-        refresh_token=st.secrets["google_token"]["refresh_token"],
-        token_uri=st.secrets["google_token"]["token_uri"],
-        client_id=st.secrets["google_token"]["client_id"],
-        client_secret=st.secrets["google_token"]["client_secret"],
-        scopes=SCOPES
-    )
-
-    service = build('calendar', 'v3', credentials=creds)
-
-    return service
-
-
-def create_event(service, title, start_time, end_time):
-
-    event = {
-        'summary': title,
-        'start': {'dateTime': start_time, 'timeZone': 'Asia/Kolkata'},
-        'end': {'dateTime': end_time, 'timeZone': 'Asia/Kolkata'},
-    }
-
-    event = service.events().insert(
-        calendarId='primary',
-        body=event
-    ).execute()
-
-    return event
+    try:
+        creds = Credentials.from_authorized_user_file("token.json")
+        service = build("calendar", "v3", credentials=creds)
+        return service
+    except:
+        return None
 
 
 def get_events(service):
 
-    events_result = service.events().list(
-        calendarId='primary',
-        maxResults=10,
-        singleEvents=True,
-        orderBy='startTime'
+    if service is None:
+        return []
+
+    try:
+        events_result = service.events().list(
+            calendarId="primary",
+            maxResults=20,
+            singleEvents=True,
+            orderBy="startTime"
+        ).execute()
+
+        events = events_result.get("items", [])
+        return events
+
+    except:
+        return []
+
+
+def create_event(service, title, start, end):
+
+    if service is None:
+        return
+
+    event = {
+        "summary": title,
+        "start": {
+            "dateTime": start,
+            "timeZone": "Asia/Kolkata"
+        },
+        "end": {
+            "dateTime": end,
+            "timeZone": "Asia/Kolkata"
+        },
+    }
+
+    service.events().insert(
+        calendarId="primary",
+        body=event
     ).execute()
-
-    events = events_result.get('items', [])
-
-    return events

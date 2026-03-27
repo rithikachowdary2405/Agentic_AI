@@ -4,17 +4,32 @@ from calendar_api import connect_calendar, create_event, get_events
 from scheduler import check_conflict, find_free_time
 from datetime import datetime, timedelta
 from reminder import send_email_reminder
+from streamlit_calendar import calendar
+from database import create_tables, save_preferences
+from llm_agent import ask_llm
 import re
 import holidays
+import os
+
+st.set_page_config(page_title="Smart Timetable Assistant", layout="wide")
 
 st.title("Smart Timetable Assistant")
 
-service = connect_calendar()
+menu = st.sidebar.selectbox(
+    "Navigation",
+    ["Dashboard", "Create Event", "Calendar", "Assignments", "AI Assistant"]
+)
 
-# -----------------------
-# FLEXIBLE TIME PARSER
-# -----------------------
+service = connect_calendar()
+create_tables()
+
+current_year = datetime.now().year
+india_holidays = holidays.India(years=[current_year])
+
+
+# ---------- TIME PARSER ----------
 def parse_time_input(time_str):
+
     time_str = time_str.strip().lower()
     time_str = time_str.replace(".", "")
     time_str = time_str.replace(" ", "")
@@ -41,213 +56,275 @@ def parse_time_input(time_str):
 
     raise ValueError("Invalid time format")
 
-# -----------------------
-# SEMESTER
-# -----------------------
+
 semester = st.selectbox("Select Semester", ["Sem 1", "Sem 2"])
+user_email = st.text_input("Enter email for reminders")
 
-# -----------------------
-# USER EMAIL
-# -----------------------
-user_email = st.text_input("Enter your email for reminders")
+if user_email:
+    save_preferences(user_email, semester)
 
-# -----------------------
-# CREATE EVENT
-# -----------------------
-st.header("Create Event")
 
-title = st.text_input("Event Title")
+# ==============================
+# DASHBOARD
+# ==============================
+if menu == "Dashboard":
 
-event_type = st.selectbox(
-    "Event Type",
-    ["Lecture", "Lab", "Tutorial", "Exam", "Personal"]
-)
+    st.header("Schedule Dashboard")
 
-start_date = st.date_input("Start Date")
-start_time_text = st.text_input("Start Time (e.g. 9, 9am, 2:30pm)", "09:00")
-
-end_date = st.date_input("End Date")
-end_time_text = st.text_input("End Time (e.g. 10, 10am, 3pm)", "10:00")
-
-is_exam = st.checkbox("Is this an Exam?")
-
-events = get_events(service)
-
-current_year = datetime.now().year
-india_holidays = holidays.India(years=[current_year])
-
-if st.button("Add Event"):
-
-    # -------- FIXED TRY BLOCK --------
     try:
-        start_time = parse_time_input(start_time_text)
-        end_time = parse_time_input(end_time_text)
+        events = get_events(service)
+    except:
+        st.error("Calendar API connection failed")
+        events = []
 
-        start_dt = datetime.combine(start_date, start_time)
-        end_dt = datetime.combine(end_date, end_time)
+    upcoming = []
 
-    except ValueError:
-        st.error("Enter time like 9, 9am, 2:30pm, or 14:30")
-        st.stop()
+    for event in events[:5]:
+        upcoming.append({
+            "Title": event.get("summary", "No Title"),
+            "Start": event["start"].get("dateTime", "").replace("T"," ").split("+")[0]
+        })
 
-    # -------- NORMAL FLOW --------
-    if start_dt.date() in india_holidays:
-        st.error("Cannot schedule on Indian holiday!")
-        st.stop()
+    df = pd.DataFrame(upcoming)
 
-    if end_dt <= start_dt:
-        st.error("End time must be after start time")
+    st.subheader("Upcoming Events")
+    st.dataframe(df, use_container_width=True)
 
-    else:
-        start = start_dt.isoformat()
-        end = end_dt.isoformat()
+    # Holidays
+    st.subheader("Upcoming Indian Holidays")
 
-        full_title = f"{event_type} - {title}"
+    today = datetime.now().date()
+    holiday_list = []
 
-        conflict = check_conflict(events, start, end)
+    for date, name in india_holidays.items():
+        if date >= today:
+            holiday_list.append({
+                "Date": date,
+                "Event": name
+            })
 
-        if conflict:
-            st.error("Time Conflict Detected!")
+    holiday_df = pd.DataFrame(holiday_list[:10])
+    st.dataframe(holiday_df, use_container_width=True)
 
-        else:
-            create_event(service, full_title, start, end)
 
-            # auto study slot for exams
-            if is_exam:
-                study_start = start_dt - timedelta(days=1)
+# ==============================
+# CREATE EVENT
+# ==============================
+if menu == "Create Event":
 
-                create_event(
-                    service,
-                    f"Study for {title}",
-                    study_start.isoformat(),
-                    start_dt.isoformat()
-                )
+    st.header("Create Event")
+
+    title = st.text_input("Event Title")
+
+    event_type = st.selectbox(
+        "Event Type",
+        ["Lecture", "Lab", "Tutorial", "Exam", "Personal"]
+    )
+
+    start_date = st.date_input("Start Date")
+    start_time_text = st.text_input("Start Time (9, 9am, 2:30pm)", "09:00")
+
+    end_date = st.date_input("End Date")
+    end_time_text = st.text_input("End Time (10, 10am, 3pm)", "10:00")
+
+    is_exam = st.checkbox("Is this an exam?")
+
+    try:
+        events = get_events(service)
+    except:
+        events = []
+
+    if st.button("Add Event"):
+
+        try:
+
+            start_time = parse_time_input(start_time_text)
+            end_time = parse_time_input(end_time_text)
+
+            start_dt = datetime.combine(start_date, start_time)
+            end_dt = datetime.combine(end_date, end_time)
+
+            if start_dt.date() in india_holidays:
+                st.error("Cannot schedule on Indian holiday")
+                st.stop()
+
+            if end_dt <= start_dt:
+                st.error("End time must be after start time")
+                st.stop()
+
+            start = start_dt.isoformat()
+            end = end_dt.isoformat()
+
+            full_title = f"{event_type} - {title}"
+
+            conflict = check_conflict(events, start, end)
+
+            if conflict:
+                st.error("Scheduling conflict detected")
+            else:
+
+                create_event(service, full_title, start, end)
+
+                # Auto study block for exams
+                if is_exam:
+                    study_start = start_dt - timedelta(days=1)
+
+                    create_event(
+                        service,
+                        f"Study for {title}",
+                        study_start.isoformat(),
+                        start_dt.isoformat()
+                    )
+
+                if user_email:
+                    send_email_reminder(user_email, full_title)
+
+                st.success("Event successfully created")
+
+        except Exception as e:
+            st.error("Invalid time format. Example: 9, 9am, 2:30pm")
+
+
+# ==============================
+# CALENDAR VIEW
+# ==============================
+if menu == "Calendar":
+
+    st.header("Calendar View")
+
+    try:
+        events = get_events(service)
+    except:
+        events = []
+
+    calendar_events = []
+
+    for event in events:
+        calendar_events.append({
+            "title": event.get("summary", "Event"),
+            "start": event["start"].get("dateTime", ""),
+            "end": event["end"].get("dateTime", "")
+        })
+
+    calendar_options = {
+        "initialView": "dayGridMonth",
+        "headerToolbar": {
+            "left": "prev,next today",
+            "center": "title",
+            "right": "dayGridMonth,timeGridWeek,timeGridDay"
+        }
+    }
+
+    calendar(events=calendar_events, options=calendar_options)
+
+    # EXPORT FUNCTION
+    df = pd.DataFrame(calendar_events)
+    csv = df.to_csv(index=False)
+
+    st.download_button(
+        "Export Schedule (CSV)",
+        csv,
+        "schedule.csv",
+        "text/csv"
+    )
+
+
+# ==============================
+# ASSIGNMENT TRACKER
+# ==============================
+if menu == "Assignments":
+
+    st.header("Assignment Tracker")
+
+    try:
+        assignments = pd.read_csv("assignments.csv")
+    except:
+        st.error("Assignments file not found")
+        assignments = pd.DataFrame()
+
+    today = datetime.now().date()
+
+    for _, row in assignments.iterrows():
+
+        deadline = pd.to_datetime(row["Deadline"]).date()
+
+        if deadline - today <= timedelta(days=2):
+            st.error(f"Deadline Soon: {row['Title']}")
 
             if user_email:
-                send_email_reminder(user_email, title)
+                send_email_reminder(user_email, f"Assignment due: {row['Title']}")
 
-            st.success("Event Created Successfully")
+        elif row["Priority"] == "High":
+            st.warning(f"High Priority: {row['Title']}")
 
-# -----------------------
-# UPCOMING EVENTS
-# -----------------------
-st.header("Upcoming Events")
+    st.dataframe(assignments, use_container_width=True)
 
-events = get_events(service)
 
-data = []
-for event in events:
-    data.append({
-        "Title": event.get("summary", "No Title"),
-        "Start": event["start"].get("dateTime")
-    })
-
-df = pd.DataFrame(data)
-st.dataframe(df)
-
-# -----------------------
-# SEMESTER TEMPLATE
-# -----------------------
-st.header("Class Timetable (Semester Template)")
-
-templates = pd.read_csv("semester_templates.csv")
-filtered = templates[templates["Semester"] == semester]
-
-st.dataframe(filtered)
-
-if st.button("Load Semester Schedule to Calendar"):
-
-    for _, row in filtered.iterrows():
-
-        today = datetime.now()
-        hour, minute = map(int, row["Time"].split(":"))
-
-        start = today.replace(hour=hour, minute=minute, second=0)
-        end = start + timedelta(hours=1)
-
-        create_event(
-            service,
-            f"{row['Type']} - {row['Subject']}",
-            start.isoformat(),
-            end.isoformat()
-        )
-
-    st.success("Semester schedule added to calendar")
-
-# -----------------------
-# ASSIGNMENTS
-# -----------------------
-st.header("Assignments")
-
-assignments = pd.read_csv("assignments.csv")
-
-for _, row in assignments.iterrows():
-    if row["Priority"] == "High":
-        st.warning(f"High Priority: {row['Title']}")
-
-st.dataframe(assignments)
-
-# -----------------------
-# INDIAN ACADEMIC CALENDAR
-# -----------------------
-st.header("Indian Academic Calendar")
-
-today = datetime.now().date()
-
-upcoming = []
-for date, name in india_holidays.items():
-    if date >= today:
-        upcoming.append({"Date": date, "Event": name})
-
-df_holidays = pd.DataFrame(upcoming[:10])
-st.dataframe(df_holidays)
-
-# -----------------------
+# ==============================
 # AI ASSISTANT
-# -----------------------
-st.header("AI Scheduling Assistant")
+# ==============================
+if menu == "AI Assistant":
 
-query = st.text_input("Ask: schedule meeting tomorrow at 5pm")
+    st.header("AI Scheduling Assistant")
 
-if query:
+    query = st.text_input("Example: schedule meeting tomorrow at 5pm")
 
-    query = query.lower()
+    try:
+        events = get_events(service)
+    except:
+        events = []
 
-    if "free" in query:
+    if query:
 
-        free_slots = find_free_time(events)
+        query = query.lower()
 
-        if free_slots:
-            for slot in free_slots:
-                st.write("Free from", slot[0], "to", slot[1])
+        if "free" in query:
+
+            free_slots = find_free_time(events)
+
+            if free_slots:
+                for slot in free_slots:
+                    st.write("Free from", slot[0], "to", slot[1])
+            else:
+                st.write("No free slots available")
+
+        elif "schedule" in query:
+
+            tomorrow = datetime.now() + timedelta(days=1)
+
+            match = re.search(r'(\d+)(am|pm)', query)
+
+            if match:
+                hour = int(match.group(1))
+
+                if match.group(2) == "pm" and hour != 12:
+                    hour += 12
+            else:
+                hour = 17
+
+            start_time = tomorrow.replace(hour=hour, minute=0, second=0)
+            end_time = tomorrow.replace(hour=hour + 1, minute=0, second=0)
+
+            create_event(
+                service,
+                "AI Event",
+                start_time.isoformat(),
+                end_time.isoformat()
+            )
+
+            if user_email:
+                send_email_reminder(user_email, "AI Event")
+
+            st.success(f"Event scheduled at {hour}:00")
+
+        elif "assignment" in query:
+
+            try:
+                assignments = pd.read_csv("assignments.csv")
+                st.dataframe(assignments)
+            except:
+                st.write("No assignments available")
+
         else:
-            st.write("No free slots")
-
-    elif "schedule" in query:
-
-        tomorrow = datetime.now() + timedelta(days=1)
-
-        match = re.search(r'(\d+)(am|pm)', query)
-
-        if match:
-            hour = int(match.group(1))
-            if match.group(2) == "pm" and hour != 12:
-                hour += 12
-        else:
-            hour = 17
-
-        start_time = tomorrow.replace(hour=hour, minute=0, second=0)
-        end_time = tomorrow.replace(hour=hour+1, minute=0, second=0)
-
-        create_event(service, "AI Event", start_time.isoformat(), end_time.isoformat())
-
-        if user_email:
-            send_email_reminder(user_email, "AI Event")
-
-        st.success(f"Event scheduled at {hour}:00")
-
-    elif "assignment" in query:
-        st.dataframe(assignments)
-
-    else:
-        st.write("Didn't understand")
+            response = ask_llm(query)
+            st.write(response)
