@@ -10,9 +10,6 @@ def parse_iso(dt):
 
 def check_conflict(events, start, end):
 
-    start_time = parse_iso(start)
-    end_time = parse_iso(end)
-
     for event in events:
 
         existing_start = parse_iso(event["start"].get("dateTime"))
@@ -20,7 +17,7 @@ def check_conflict(events, start, end):
 
         if existing_start and existing_end:
 
-            if start_time < existing_end and end_time > existing_start:
+            if start < existing_end and end > existing_start:
                 return True
 
     return False
@@ -31,30 +28,22 @@ def find_free_time(events):
     free_slots = []
 
     now = datetime.now()
-    end_day = now + timedelta(hours=12)
 
-    current = now
+    start_time = now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+
+    end_day = start_time + timedelta(hours=12)
+
+    current = start_time
 
     while current < end_day:
 
         slot_end = current + timedelta(hours=1)
-        conflict = False
 
-        for event in events:
+        if not check_conflict(events, current, slot_end):
 
-            existing_start = parse_iso(event["start"].get("dateTime"))
-            existing_end = parse_iso(event["end"].get("dateTime"))
-
-            if existing_start and existing_end:
-
-                if current < existing_end and slot_end > existing_start:
-                    conflict = True
-                    break
-
-        if not conflict:
             free_slots.append(
-                (current.strftime("%H:%M"), slot_end.strftime("%H:%M"))
-            )
+                (current.strftime("%-I %p"), slot_end.strftime("%-I %p"))
+)
 
         current += timedelta(hours=1)
 

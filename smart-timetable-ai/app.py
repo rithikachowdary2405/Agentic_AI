@@ -32,19 +32,13 @@ def parse_time_input(time_str):
 
     time_str = time_str.strip().lower()
     time_str = time_str.replace(".", "")
-    time_str = time_str.replace(" ", "")
-
-    if time_str.isdigit():
-        hour = int(time_str)
-        return datetime.strptime(f"{hour}:00", "%H:%M").time()
-
-    time_str = re.sub(r'(\d)(am|pm)', r'\1 \2', time_str)
 
     formats = [
         "%H:%M",
+        "%I:%M%p",
         "%I:%M %p",
-        "%I %p",
         "%I%p",
+        "%I %p",
         "%H"
     ]
 
@@ -90,7 +84,6 @@ if menu == "Dashboard":
     st.subheader("Upcoming Events")
     st.dataframe(df, use_container_width=True)
 
-    # Holidays
     st.subheader("Upcoming Indian Holidays")
 
     today = datetime.now().date()
@@ -122,10 +115,10 @@ if menu == "Create Event":
     )
 
     start_date = st.date_input("Start Date")
-    start_time_text = st.text_input("Start Time (9, 9am, 2:30pm)", "09:00")
+    start_time_text = st.text_input("Start Time (9, 9am, 2:30pm)")
 
     end_date = st.date_input("End Date")
-    end_time_text = st.text_input("End Time (10, 10am, 3pm)", "10:00")
+    end_time_text = st.text_input("End Time (10, 10am, 3pm)")
 
     is_exam = st.checkbox("Is this an exam?")
 
@@ -152,20 +145,22 @@ if menu == "Create Event":
                 st.error("End time must be after start time")
                 st.stop()
 
-            start = start_dt.isoformat()
-            end = end_dt.isoformat()
-
             full_title = f"{event_type} - {title}"
 
-            conflict = check_conflict(events, start, end)
+            # FIX: send datetime objects to conflict check
+            conflict = check_conflict(events, start_dt, end_dt)
 
             if conflict:
                 st.error("Scheduling conflict detected")
             else:
 
-                create_event(service, full_title, start, end)
+                create_event(
+                    service,
+                    full_title,
+                    start_dt.isoformat(),
+                    end_dt.isoformat()
+                )
 
-                # Auto study block for exams
                 if is_exam:
                     study_start = start_dt - timedelta(days=1)
 
@@ -182,7 +177,7 @@ if menu == "Create Event":
                 st.success("Event successfully created")
 
         except Exception as e:
-            st.error("Invalid time format. Example: 9, 9am, 2:30pm")
+            st.error(f"Error: {e}")
 
 
 # ==============================
@@ -217,7 +212,6 @@ if menu == "Calendar":
 
     calendar(events=calendar_events, options=calendar_options)
 
-    # EXPORT FUNCTION
     df = pd.DataFrame(calendar_events)
     csv = df.to_csv(index=False)
 
@@ -230,7 +224,7 @@ if menu == "Calendar":
 
 
 # ==============================
-# ASSIGNMENT TRACKER
+# ASSIGNMENTS
 # ==============================
 if menu == "Assignments":
 
