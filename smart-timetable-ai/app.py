@@ -261,7 +261,9 @@ if menu == "AI Assistant":
 
     st.header("AI Scheduling Assistant")
 
-    query = st.text_input("Example: schedule meeting tomorrow at 5pm")
+    query = st.text_input(
+        "Try: What are my upcoming events? | Show free slots | Schedule meeting tomorrow at 5pm"
+    )
 
     try:
         events = get_events(service)
@@ -272,53 +274,136 @@ if menu == "AI Assistant":
 
         query = query.lower()
 
-        if "free" in query:
+        # -------------------------
+        # UPCOMING EVENTS
+        # -------------------------
+        if "upcoming" in query or "event" in query or "calendar" in query:
+
+            if not events:
+                st.info("No upcoming events found.")
+
+            else:
+
+                st.subheader("📅 Upcoming Events")
+
+                for event in events[:5]:
+
+                    title = event.get("summary", "No Title")
+
+                    start = event["start"].get("dateTime")
+
+                    if start:
+
+                        dt = datetime.fromisoformat(
+                            start.replace("Z", "")
+                        ).replace(tzinfo=None)
+
+                        st.write(
+                            f"**{title}** — {dt.strftime('%d %b %Y, %I:%M %p')}"
+                        )
+
+        # -------------------------
+        # FREE SLOTS
+        # -------------------------
+        elif "free" in query:
 
             free_slots = find_free_time(events)
 
             if free_slots:
-                for slot in free_slots:
-                    st.write("Free from", slot[0], "to", slot[1])
-            else:
-                st.write("No free slots available")
 
+                st.subheader("🟢 Free Slots")
+
+                for start, end in free_slots:
+
+                    start_display = datetime.strptime(
+                        start,
+                        "%H:%M"
+                    ).strftime("%I:%M %p")
+
+                    end_display = datetime.strptime(
+                        end,
+                        "%H:%M"
+                    ).strftime("%I:%M %p")
+
+                    st.write(f"✅ {start_display} → {end_display}")
+
+            else:
+
+                st.warning("No free slots available.")
+
+        # -------------------------
+        # SCHEDULE MEETING
+        # -------------------------
         elif "schedule" in query:
 
             tomorrow = datetime.now() + timedelta(days=1)
 
-            match = re.search(r'(\d+)(am|pm)', query)
-
-            if match:
-                hour = int(match.group(1))
-
-                if match.group(2) == "pm" and hour != 12:
-                    hour += 12
-            else:
-                hour = 17
-
-            start_time = tomorrow.replace(hour=hour, minute=0, second=0)
-            end_time = tomorrow.replace(hour=hour + 1, minute=0, second=0)
-
-            create_event(
-                service,
-                "AI Event",
-                start_time.isoformat(),
-                end_time.isoformat()
+            match = re.search(
+                r'(\d{1,2})(?::(\d{2}))?\s*(am|pm)',
+                query
             )
 
-            if user_email:
-                send_email_reminder(user_email, "AI Event")
+            if match:
 
-            st.success(f"Event scheduled at {hour}:00")
+                hour = int(match.group(1))
+                minute = int(match.group(2)) if match.group(2) else 0
 
+                if match.group(3) == "pm" and hour != 12:
+                    hour += 12
+
+                if match.group(3) == "am" and hour == 12:
+                    hour = 0
+
+            else:
+
+                hour = 17
+                minute = 0
+
+            start_time = tomorrow.replace(
+                hour=hour,
+                minute=minute,
+                second=0,
+                microsecond=0
+            )
+
+            end_time = start_time + timedelta(hours=1)
+
+            if check_conflict(events, start_time, end_time):
+
+                st.error("Scheduling conflict detected.")
+
+            else:
+
+                create_event(
+                    service,
+                    "AI Event",
+                    start_time.isoformat(),
+                    end_time.isoformat()
+                )
+
+                if user_email:
+                    send_email_reminder(user_email, "AI Event")
+
+                st.success(
+                    f"✅ Meeting scheduled on {start_time.strftime('%d %b %Y at %I:%M %p')}"
+                )
+
+        # -------------------------
+        # ASSIGNMENTS
+        # -------------------------
         elif "assignment" in query:
 
             try:
                 assignments = pd.read_csv("assignments.csv")
-                st.dataframe(assignments)
-            except:
-                st.write("No assignments available")
+                st.dataframe(assignments, use_container_width=True)
 
+            except:
+                st.write("No assignments available.")
+
+        # -------------------------
+        # GEMINI
+        # -------------------------
         else:
+
             response = ask_llm(query)
             st.write(response)
