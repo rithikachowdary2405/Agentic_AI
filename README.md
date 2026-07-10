@@ -60,7 +60,7 @@ An AI-powered academic scheduling assistant that helps students manage classes, 
 
 ## Project Structure
 
-
+```
 smart-timetable-ai/
 │
 ├── app.py
@@ -77,22 +77,31 @@ smart-timetable-ai/
 ├── requirements.txt
 ├── user_data.db
 ├── README.md
-
+```
 
 ---
 
 ## Installation
 
+Clone the repository
+
+```bash
+git clone https://github.com/YOUR_USERNAME/smart-timetable-ai.git
+
+cd smart-timetable-ai
+```
 
 Install dependencies
 
-
+```bash
 pip install -r requirements.txt
-
+```
 
 Run the application
 
+```bash
 streamlit run app.py
+```
 
 ---
 
@@ -102,8 +111,8 @@ streamlit run app.py
 
 1. Create a project in Google Cloud Console.
 2. Enable Google Calendar API.
-3. Download 'credentials.json'.
-4. Authenticate to generate 'token.json'.
+3. Download `credentials.json`.
+4. Authenticate to generate `token.json`.
 
 ---
 
@@ -112,7 +121,11 @@ streamlit run app.py
 Set your API key.
 
 Example:
+
+```python
 GEMINI_API_KEY="YOUR_API_KEY"
+```
+
 ---
 
 ### Gmail Reminder
@@ -121,10 +134,11 @@ Configure your Gmail App Password.
 
 Example:
 
-
+```
 EMAIL_ADDRESS=your_email@gmail.com
 
 EMAIL_PASSWORD=your_app_password
+```
 
 ---
 
@@ -132,7 +146,7 @@ EMAIL_PASSWORD=your_app_password
 
 You can ask:
 
-
+```
 What are my upcoming events?
 
 Show my free slots
@@ -144,6 +158,7 @@ Show assignments
 What is Generative AI?
 
 Explain Cyber Security
+```
 
 ---
 
@@ -154,5 +169,17 @@ Explain Cyber Security
 - Calendar
 - Assignment Tracker
 - AI Scheduling Assistant
+
+---
+
+## Future Enhancements
+
+- Voice-controlled scheduling
+- Automatic timetable generation
+- WhatsApp notifications
+- Smart study planner
+- AI-based timetable optimization
+- OCR timetable import
+- Mobile application support
 
 ---
