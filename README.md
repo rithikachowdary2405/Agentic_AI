@@ -171,15 +171,3 @@ Explain Cyber Security
 - AI Scheduling Assistant
 
 ---
-
-## Future Enhancements
-
-- Voice-controlled scheduling
-- Automatic timetable generation
-- WhatsApp notifications
-- Smart study planner
-- AI-based timetable optimization
-- OCR timetable import
-- Mobile application support
-
----
