@@ -37,7 +37,7 @@ An AI-powered academic scheduling assistant that helps students manage classes, 
 - Sends reminder emails for created events
 - Sends assignment deadline reminders
 
-### 🗓 Dashboard
+###  Dashboard
 - Upcoming events overview
 - Upcoming Indian holidays
 - Academic schedule summary
