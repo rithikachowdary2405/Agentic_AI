@@ -1,39 +1,39 @@
-# 📅 Smart Timetable Assistant
+# Smart Timetable Assistant
 
 An AI-powered academic scheduling assistant that helps students manage classes, assignments, exams, and personal events using Google Calendar integration and Generative AI.
 
 ---
 
-## 🚀 Features
+##  Features
 
-### 📆 Smart Calendar Management
+###  Smart Calendar Management
 - Google Calendar integration
 - Monthly, weekly and daily calendar views
 - Create and manage academic and personal events
 - Export schedule as CSV
 
-### 🤖 AI Scheduling Assistant
+###  AI Scheduling Assistant
 - View upcoming calendar events
 - Find available free time slots
 - Schedule meetings using natural language
 - View assignment information
 - Answer general academic queries using Google Gemini AI
 
-### ⚠️ Conflict Detection
+### Conflict Detection
 - Detects scheduling conflicts before creating events
 - Prevents overlapping events
 - Suggests available free slots
 
-### 📚 Assignment Tracker
+###  Assignment Tracker
 - Displays assignment deadlines
 - Highlights high-priority assignments
 - Deadline notifications
 
-### 🎓 Exam Planner
+###  Exam Planner
 - Automatically creates study sessions before exams
 - Prevents scheduling on Indian public holidays
 
-### 📧 Email Notifications
+###  Email Notifications
 - Sends reminder emails for created events
 - Sends assignment deadline reminders
 
@@ -44,7 +44,7 @@ An AI-powered academic scheduling assistant that helps students manage classes, 
 
 ---
 
-## 🛠 Tech Stack
+## Tech Stack
 
 - Python
 - Streamlit
